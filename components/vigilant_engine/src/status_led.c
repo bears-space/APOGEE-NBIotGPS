@@ -37,7 +37,6 @@ typedef enum {
     #define CURRENT_LED_MODE MODE_BLINK
 #endif
 
-static const char *TAG = "status_led";
 static TaskHandle_t s_blink_task = NULL;
 
 static void blink_led(uint8_t led_gpio)
@@ -87,17 +86,18 @@ esp_err_t status_led_blink_start(uint32_t on_ms, uint32_t off_ms, uint8_t led_gp
     s_blink.running = true;
 
     BaseType_t ok = xTaskCreate(blink_task, "status_led_blink", 4096, (void *)(intptr_t)led_gpio, 15, &s_blink_task);
-    ESP_LOGI(TAG, "Blink task created");
     return ok == pdPASS ? ESP_OK : ESP_ERR_NO_MEM;
 }
 
 esp_err_t status_led_blink_stop(void)
 {
-    if (s_blink_task) {
-        s_blink.running = false;
-        vTaskDelay(pdMS_TO_TICKS(20)); // Wait for task exit
+    if (s_blink_task != NULL) {
+        vTaskDelete(s_blink_task);
+        s_blink_task = NULL;
     }
-    return 0;
+    
+    s_blink.running = false;
+    return ESP_OK;
 }
 
 esp_err_t status_led_set_state(status_state_t state) {
