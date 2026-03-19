@@ -31,7 +31,7 @@ static esp_err_t reboot_factory_handler(httpd_req_t *req)
 
     vTaskDelay(pdMS_TO_TICKS(300));
     ESP_ERROR_CHECK(esp_ota_set_boot_partition(factory));
-    ESP_ERROR_CHECK(status_led_off());
+    //ESP_ERROR_CHECK(status_led_off());
     esp_restart();
     return ESP_OK;
 }
