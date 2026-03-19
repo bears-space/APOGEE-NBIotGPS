@@ -23,33 +23,27 @@ RGB mode:
 static const char *TAG = "status_led";
 static TaskHandle_t s_blink_task = NULL;
 
-//Only relevant if led_mode is set to RGB
-static int led_gpio_red = 46;
-static int led_gpio_green = 0;
-static int led_gpio_blue = 45;
-
-//Status led for BLINK mode
-static int led_gpio_blink = 48;
-
 static void blink_led(uint8_t led_gpio)
 {
     // Set the GPIO level according to the state (LOW or HIGH)
     gpio_set_level(led_gpio, s_blink.state);
 }
 
-void configure_led(led_mode mode)
+void configure_led()
 {
-    if(mode == RGB) {
-        gpio_reset_pin(led_gpio_red);
-        gpio_reset_pin(led_gpio_green);
-        gpio_reset_pin(led_gpio_blue);
+    switch (VE_STATUS_LED_MODE) {
+    case VE_STATUS_LED_MODE_RGB:
+        gpio_reset_pin(VE_STATUS_LED_GPIO_RED);
+        gpio_reset_pin(VE_STATUS_LED_GPIO_GREEN);
+        gpio_reset_pin(VE_STATUS_LED_GPIO_BLUE);
 
-        gpio_set_direction(led_gpio_red, GPIO_MODE_OUTPUT);
-        gpio_set_direction(led_gpio_green, GPIO_MODE_OUTPUT);
-        gpio_set_direction(led_gpio_blue, GPIO_MODE_OUTPUT);
-    } else {
-        gpio_reset_pin(led_gpio_blink);
-        gpio_set_direction(led_gpio_blink, GPIO_MODE_OUTPUT);
+        gpio_set_direction(VE_STATUS_LED_GPIO_RED, GPIO_MODE_OUTPUT);
+        gpio_set_direction(VE_STATUS_LED_GPIO_GREEN, GPIO_MODE_OUTPUT);
+        gpio_set_direction(VE_STATUS_LED_GPIO_BLINK, GPIO_MODE_OUTPUT);
+
+    case VE_STATUS_LED_MODE_BLINK:
+        gpio_reset_pin(VE_STATUS_LED_GPIO_BLINK);
+        gpio_set_direction(VE_STATUS_LED_GPIO_BLINK, GPIO_MODE_OUTPUT);
     }
 }
 
@@ -90,33 +84,33 @@ esp_err_t status_led_blink_stop(void)
     return 0;
 }
 
-esp_err_t status_led_set_state(status_state_t state, led_mode mode) {
-    switch (mode) {
-        case RGB:
+esp_err_t status_led_set_state(status_state_t state) {
+    switch (VE_STATUS_LED_MODE) {
+        case VE_STATUS_LED_MODE_RGB:
             switch (state) {
             case STATUS_STATE_INFO:
-                gpio_set_level(led_gpio_red, 1);
-                gpio_set_level(led_gpio_blue, 1);
-                return status_led_blink_start(1000, 1000, led_gpio_green);
+                gpio_set_level(VE_STATUS_LED_GPIO_RED, 1);
+                gpio_set_level(VE_STATUS_LED_GPIO_BLUE, 1);
+                return status_led_blink_start(1000, 1000, VE_STATUS_LED_GPIO_GREEN);
             case STATUS_STATE_WARNING:
-                gpio_set_level(led_gpio_green, 1);
-                gpio_set_level(led_gpio_red, 1);
-                return status_led_blink_start(600, 600, led_gpio_blue);
+                gpio_set_level(VE_STATUS_LED_GPIO_GREEN, 1);
+                gpio_set_level(VE_STATUS_LED_GPIO_RED, 1);
+                return status_led_blink_start(600, 600, VE_STATUS_LED_GPIO_BLUE);
             case STATUS_STATE_ERROR:
-                gpio_set_level(led_gpio_green, 1);
-                gpio_set_level(led_gpio_blue, 1);
-                return status_led_blink_start(300, 300, led_gpio_red);
+                gpio_set_level(VE_STATUS_LED_GPIO_GREEN, 1);
+                gpio_set_level(VE_STATUS_LED_GPIO_BLUE, 1);
+                return status_led_blink_start(300, 300, VE_STATUS_LED_GPIO_RED);
             default:
                 return status_led_blink_stop();
         }
-        case BLINK:
+        case VE_STATUS_LED_MODE_BLINK:
             switch (state) {
             case STATUS_STATE_INFO:
-                return status_led_blink_start(2000, 2000, led_gpio_blink);
+                return status_led_blink_start(2000, 2000, VE_STATUS_LED_GPIO_BLINK);
             case STATUS_STATE_WARNING:
-                return status_led_blink_start(700, 700, led_gpio_blink);
+                return status_led_blink_start(700, 700, VE_STATUS_LED_GPIO_BLINK);
             case STATUS_STATE_ERROR:
-                return status_led_blink_start(100, 100, led_gpio_blink);
+                return status_led_blink_start(100, 100, VE_STATUS_LED_GPIO_BLINK);
             default:
                 return status_led_blink_stop();
         }
