@@ -63,7 +63,6 @@ menu "Vigilant Engine Configuration: LEDs"
         depends on VE_LED_TYPE_WS2812B
 
     config VE_INVERT_STATUS_LED
-        depends on VE_LED_TYPE_NONE
         bool "Invert Status LED GPIO"
         default y
         help
