@@ -5,6 +5,7 @@
 #include "driver/gpio.h"
 #include "esp_log.h"
 #include "led_strip.h"
+#include "led_strip_rmt.h" // this is ws2812b specific
 #include "sdkconfig.h"
 
 #if defined(CONFIG_VE_INVERT_STATUS_LED)
