@@ -15,6 +15,7 @@
 #include "lwip/inet.h"
 #include "status_led.h"
 #include "sdkconfig.h"
+#include "i2c.h"
 
 #include "freertos/FreeRTOS.h"
 #include "freertos/timers.h"
@@ -197,12 +198,16 @@ esp_err_t vigilant_init(VigilantConfig VgConfig)
     ESP_LOGI(TAG, "Starting HTTP server");
     ESP_ERROR_CHECK(http_server_start());
 
+    #if CONFIG_VE_ENABLE_I2C
+    ESP_LOGI(TAG, "Initializing I2C bus");
+    ESP_ERROR_CHECK(i2c_init());
+    #endif
+
     ESP_LOGI(TAG, "Vigilant initialized successfully!");
     ESP_LOGI(TAG, "This node unique name is: %s", VgConfig.unique_component_name);
     s_cfg = VgConfig;
 
     //Set info status once
-    status_led_set_state(STATUS_STATE_INFO);
 
     return ESP_OK;
 }
