@@ -10,6 +10,12 @@ Vigilant Engine includes drivers and integration for common peripherals used acr
 
 These peripherals are wrapped behind a common abstraction layer to simplify reuse across multiple firmware targets.
 
+## I2C bus
+
+Vigilant Engine also provides an optional shared I2C master interface for external sensors and peripherals.
+
+For setup and API usage, see the [I2C Interface](./i2c-interface.md) page.
+
 ### Status LED
 
 Depending on the mode, the status LED gives information about the status of the device differently.
