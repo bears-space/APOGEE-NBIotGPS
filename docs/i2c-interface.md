@@ -27,14 +27,110 @@ When enabled, Vigilant Engine builds the I2C driver, creates the bus during star
 
 If I2C is disabled in menuconfig, the public `vigilant_i2c_*` helpers return `ESP_ERR_NOT_SUPPORTED`.
 
-## `VigilantI2CDevice`
+## Device object
 
 The I2C interface uses a small device object so the caller only has to pass one pointer around.
 
-- `address`: 7-bit I2C device address
-- `whoami_reg`: Register used by the optional WHOAMI check
-- `expected_whoami`: Expected value returned by the WHOAMI register
-- `handle`: Runtime device handle managed by Vigilant Engine. Initialize this to `NULL`
+___
+#### `VigilantI2CDevice`, **struct**
+Describes one I2C peripheral on the shared bus.
+
+###### Fields:
+- `address` 7-bit I2C device address
+- `whoami_reg` Register used by the optional WHOAMI check
+- `expected_whoami` Expected value returned by the WHOAMI register
+- `handle` Runtime device handle managed by Vigilant Engine. Initialize this to `NULL`
+
+## Public runtime functions
+
+These are the functions intended to be used from the application in `main/`.
+
+___
+#### `vigilant_i2c_add_device`, **function**
+Registers a device on the initialized Vigilant Engine I2C bus and stores the ESP-IDF device handle in the
+provided `VigilantI2CDevice` object.
+
+###### Parameters:
+- `device` Pointer to the `VigilantI2CDevice` object to add
+
+###### Returns:
+- `ESP_OK` Device was added successfully, or was already added
+- `ESP_ERR_INVALID_STATE` I2C bus is not initialized
+- `ESP_ERR_INVALID_ARG` `device` is `NULL`
+- `ESP_ERR_NOT_SUPPORTED` I2C support is disabled in menuconfig
+
+___
+#### `vigilant_i2c_remove_device`, **function**
+Removes a previously added device from the I2C bus and clears its runtime handle.
+
+###### Parameters:
+- `device` Pointer to the `VigilantI2CDevice` object to remove
+
+###### Returns:
+- `ESP_OK` Device was removed successfully
+- `ESP_ERR_INVALID_ARG` `device` is `NULL` or the device was not added before
+- `ESP_ERR_NOT_SUPPORTED` I2C support is disabled in menuconfig
+
+___
+#### `vigilant_i2c_read_reg8`, **function**
+Reads one 8-bit register from the selected I2C device.
+
+###### Parameters:
+- `device` Pointer to the `VigilantI2CDevice` object to read from
+- `reg` Register address to transmit before reading
+- `value` Output buffer for the returned register value
+
+###### Returns:
+- `ESP_OK` Register read succeeded
+- `ESP_ERR_INVALID_ARG` `device` is `NULL`, the device was not added, or `value` is `NULL`
+- `ESP_ERR_NOT_SUPPORTED` I2C support is disabled in menuconfig
+
+___
+#### `vigilant_i2c_whoami_check`, **function**
+Reads the register stored in `device->whoami_reg` and compares it against `device->expected_whoami`.
+
+###### Parameters:
+- `device` Pointer to the `VigilantI2CDevice` object to validate
+
+###### Returns:
+- `ESP_OK` WHOAMI value matches the expected value
+- `ESP_ERR_INVALID_ARG` `device` is `NULL` or the device was not added
+- `ESP_ERR_INVALID_RESPONSE` The device responded, but the WHOAMI value did not match
+- `ESP_ERR_NOT_SUPPORTED` I2C support is disabled in menuconfig
+
+## Low-level I2C functions
+
+These functions exist in the I2C component itself. In normal application code, prefer the
+`vigilant_i2c_*` wrappers.
+
+___
+#### `i2c_init`, **function**
+Initializes the shared I2C master bus, configures the GPIO pins from menuconfig, and logs a bus scan.
+
+###### Returns:
+- `ESP_OK` Bus is ready for use
+- Any ESP-IDF error returned by `i2c_new_master_bus(...)`
+
+___
+#### `i2c_add_device`, **function**
+Low-level variant of `vigilant_i2c_add_device(...)`. Adds a device to the bus using the provided device object.
+
+___
+#### `i2c_remove_device`, **function**
+Low-level variant of `vigilant_i2c_remove_device(...)`. Removes a device and clears its handle.
+
+___
+#### `i2c_read_reg8`, **function**
+Low-level variant of `vigilant_i2c_read_reg8(...)`. Reads one 8-bit register from a device.
+
+___
+#### `i2c_whoami_check`, **function**
+Low-level variant of `vigilant_i2c_whoami_check(...)`. Compares the returned WHOAMI value with the expected one.
+
+___
+#### `i2c_deinit`, **function**
+Deletes the shared I2C master bus. This is mainly intended for cleanup and is usually not needed in normal
+application startup flow.
 
 ## Example
 
