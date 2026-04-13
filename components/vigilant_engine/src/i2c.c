@@ -132,6 +132,22 @@ esp_err_t i2c_remove_device(VigilantI2CDevice *device)
     return err;
 }
 
+esp_err_t i2c_set_reg8(VigilantI2CDevice *device, uint8_t reg, uint8_t value)
+{
+    if (!device) {
+        ESP_LOGE(TAG, "Cannot write reg 0x%02X: device object is NULL", reg);
+        return ESP_ERR_INVALID_ARG;
+    }
+    if (!device->handle) {
+        ESP_LOGE(TAG, "Cannot write reg 0x%02X: device 0x%02X has no handle. Call i2c_add_device() first.",
+                 reg, (unsigned int)device->address);
+        return ESP_ERR_INVALID_ARG;
+    }
+
+    uint8_t payload[] = {reg, value};
+    return i2c_master_transmit(device->handle, payload, sizeof(payload), 100);
+}
+
 esp_err_t i2c_read_reg8(VigilantI2CDevice *device, uint8_t reg, uint8_t *value)
 {
     if (!device) {
