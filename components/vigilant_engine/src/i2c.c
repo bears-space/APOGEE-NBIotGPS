@@ -22,16 +22,50 @@ static const char *TAG = "ve_i2c";
 static i2c_master_bus_handle_t s_i2c_bus = NULL;
 static i2c_master_dev_handle_t s_i2c_dev = NULL;
 
+struct i2c_device {
+    uint8_t address;
+    uint8_t whoami_reg_addr;
+    uint8_t expected_whoami_value;
+};
+
+struct i2c_device_list
+{
+    struct i2c_device *devices;
+    size_t count;
+};
+
+esp_err_t whoami_check(i2c_master_dev_handle_t dev, struct i2c_device *device)
+{
+    uint8_t reg = device->whoami_reg_addr;
+    uint8_t value = 0;
+
+    esp_err_t err = i2c_master_transmit_receive(dev, &reg, 1, &value, 1, 100);
+    if (err != ESP_OK) {
+        ESP_LOGE(TAG, "Failed to read WHOAMI reg 0x%02X: %s",
+                 device->whoami_reg_addr, esp_err_to_name(err));
+        return err;
+    }
+
+    if (value != device->expected_whoami_value) {
+        ESP_LOGE(TAG, "WHOAMI mismatch: expected 0x%02X but got 0x%02X",
+                 device->expected_whoami_value, value);
+        return ESP_ERR_INVALID_RESPONSE;
+    }
+
+    ESP_LOGI(TAG, "WHOAMI check passed: 0x%02X", value);
+    return ESP_OK;
+}
+
 static esp_err_t i2c_read_reg8(uint8_t reg, uint8_t *value) // Helper function to read a single register
 {
-    if (!s_i2c_dev) return ESP_ERR_INVALID_STATE;
+    if (!s_i2c_dev) return ESP_ERR_INVALID_RESPONSE;
     return i2c_master_transmit_receive(s_i2c_dev, &reg, 1, value, 1, 100);
 }
 
-esp_err_t i2c_add_device(uint16_t address, i2c_master_dev_handle_t *out_dev) // Helper function to add a device to the bus
+esp_err_t add_i2c_device(struct i2c_device *device, i2c_master_dev_handle_t *out_dev) // Helper function to add a device to the bus
 {
     if (!s_i2c_bus) {
-        return ESP_ERR_INVALID_STATE;
+        return ESP_ERR_INVALID_RESPONSE;
     }
     if (!out_dev) {
         return ESP_ERR_INVALID_ARG;
@@ -39,14 +73,22 @@ esp_err_t i2c_add_device(uint16_t address, i2c_master_dev_handle_t *out_dev) // 
 
     i2c_device_config_t dev_cfg = {
         .dev_addr_length = I2C_ADDR_BIT_LEN_7,
-        .device_address = address,
+        .device_address = device->address,
         .scl_speed_hz = I2C_FREQ_HZ,
     };
 
     esp_err_t err = i2c_master_bus_add_device(s_i2c_bus, &dev_cfg, out_dev);
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to add I2C device 0x%02X: %s",
-                 address, esp_err_to_name(err));
+                 device->address, esp_err_to_name(err));
+        return err;
+    }
+
+    err = whoami_check(*out_dev, device);
+    if (err != ESP_OK) {
+        i2c_master_bus_rm_device(*out_dev);
+        *out_dev = NULL;
+        ESP_LOGE(TAG, "Device 0x%02X failed WHOAMI check and was removed from bus", device->address);
     }
 
     return err;
@@ -113,20 +155,17 @@ esp_err_t i2c_init(void)
 
     ESP_LOGI(TAG, "Scan complete, found %d device(s)", found);
 
-    err = i2c_add_device(I2C_TEST_ADDR, &s_i2c_dev);
+    struct i2c_device test_device = {
+        .address = 0x18,
+        .whoami_reg_addr = 0x0F,
+        .expected_whoami_value = 0xBC,
+    };
+    
+    err = add_i2c_device(&test_device, &s_i2c_dev);
     if (err != ESP_OK) {
         i2c_del_master_bus(s_i2c_bus);
         s_i2c_bus = NULL;
         return err;
-    }
-
-    uint8_t value = 0;
-    err = i2c_read_reg8(0x0F, &value);
-    if (err == ESP_OK) {
-        ESP_LOGI(TAG, "0x%02X: reg 0x0F = 0x%02X", I2C_TEST_ADDR, value);
-    } else {
-        ESP_LOGE(TAG, "Failed to read reg 0x0F from 0x%02X: %s",
-                I2C_TEST_ADDR, esp_err_to_name(err));
     }
 
     return ESP_OK;

@@ -152,6 +152,7 @@ static esp_err_t wifi_apply_mode(NW_MODE mode,
 
 esp_err_t vigilant_init(VigilantConfig VgConfig)
 {
+    bool initializedSuccessfully = true; // Assume success until a failure occurs
     uint8_t mac[6];
 
     ESP_LOGI(TAG, "Init NVS");
@@ -166,6 +167,7 @@ esp_err_t vigilant_init(VigilantConfig VgConfig)
     esp_err_t err = configure_led();
     if (err != ESP_OK) {
         ESP_LOGE(TAG, "Failed to configure status LED: %s", esp_err_to_name(err));
+        initializedSuccessfully = false;
     }
 
     // Capture ESP-IDF logs early so they can be replayed to websocket clients
@@ -182,6 +184,7 @@ esp_err_t vigilant_init(VigilantConfig VgConfig)
     ret = esp_event_loop_create_default();
     if (ret != ESP_OK && ret != ESP_ERR_INVALID_STATE) {
         ESP_ERROR_CHECK(ret);
+        initializedSuccessfully = false;
     }
 
     ESP_LOGI(TAG, "Init WiFi driver");
@@ -196,13 +199,32 @@ esp_err_t vigilant_init(VigilantConfig VgConfig)
     ESP_ERROR_CHECK(http_server_register_event_handlers());
 
     ESP_LOGI(TAG, "Starting HTTP server");
-    ESP_ERROR_CHECK(http_server_start());
+    ret = http_server_start();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "http_server_start failed: %s", esp_err_to_name(ret));
+        initializedSuccessfully = false;
+        return ret;
+    }
+    ESP_LOGI(TAG, "HTTP server started successfully");
 
     #if CONFIG_VE_ENABLE_I2C
-    ESP_LOGI(TAG, "Initializing I2C bus");
-    ESP_ERROR_CHECK(i2c_init());
+    ESP_LOGI(TAG, "I2C is enabled in config; initializing bus");
+    ret = i2c_init();
+    if (ret != ESP_OK) {
+        ESP_LOGE(TAG, "i2c_init failed: %s", esp_err_to_name(ret));
+        initializedSuccessfully = false;
+        
+    } else {
+        ESP_LOGI(TAG, "I2C bus initialized successfully");
+    }
+    #else
+    ESP_LOGI(TAG, "I2C support is disabled in config");
     #endif
 
+    if (!initializedSuccessfully) {
+        ESP_LOGE(TAG, "Vigilant initialization failed due to previous errors");
+        return ESP_FAIL;
+    }
     ESP_LOGI(TAG, "Vigilant initialized successfully!");
     ESP_LOGI(TAG, "This node unique name is: %s", VgConfig.unique_component_name);
     s_cfg = VgConfig;
